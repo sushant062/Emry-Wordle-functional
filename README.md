@@ -185,13 +185,24 @@ test/               node:test suites
 
 ## Performance
 
-Measured locally on the development machine (fill in on the Fujitsu box after the
-first deploy). Combined gzipped frontend target: under 30 KB; `/api/today` target:
-under 100 ms.
+The server gzips responses (Hono's `compress` middleware), so phones download the
+small numbers below. Measured with `curl -H 'Accept-Encoding: gzip'` against
+`npm start` on the development machine; the Fujitsu box and Tailscale Funnel will
+add a little network time. Combined gzipped frontend: **≈ 10.5 KB** (target was
+under 30 KB). `/api/today` is **≈ 7 ms warm** locally (target was under 100 ms).
 
 | Resource | Size (gzip) | Time |
 | --- | --- | --- |
-| `/` | _pending_ | _pending_ |
-| `/app.js` | _pending_ | _pending_ |
-| `/app.css` | _pending_ | _pending_ |
-| `/api/today` | _pending_ | _pending_ |
+| `/` | 848 B | 64 ms cold, then fast |
+| `/app.js` | 7.2 KB | 30 ms cold |
+| `/app.css` | 2.4 KB | 8 ms |
+| `/share.js` | 463 B | 8 ms |
+| `/api/today` | 123 B | 7 ms warm |
+
+Re-run the same numbers on the deployed box with:
+
+```sh
+for p in / /app.js /app.css /api/today; do
+  curl -s -H 'Accept-Encoding: gzip' -o /dev/null -w "$p %{size_download} %{time_total}\n" "http://localhost:3000$p"
+done
+```

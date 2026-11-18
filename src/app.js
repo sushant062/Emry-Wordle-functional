@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { compress } from 'hono/compress';
 import { getCookie, setCookie } from 'hono/cookie';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -67,6 +68,7 @@ export function createApp({
   adminToken = process.env.ADMIN_TOKEN ?? '',
 }) {
   const app = new Hono();
+  app.use('*', compress());
   const guessLimiter = createRateLimiter({ limit: 60, windowMs: 60_000, now });
   const startLimiter = createRateLimiter({ limit: 10, windowMs: 60_000, now });
   let allowed = null;
