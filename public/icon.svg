@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Emry Wordle">
+  <rect width="512" height="512" rx="96" fill="#0f1116"/>
+  <rect x="64" y="64" width="168" height="168" rx="24" fill="#3f9d68"/>
+  <rect x="248" y="64" width="168" height="168" rx="24" fill="#d7a12f"/>
+  <rect x="64" y="248" width="168" height="168" rx="24" fill="#2a2f3b"/>
+  <rect x="248" y="248" width="168" height="168" rx="24" fill="#2a2f3b"/>
+  <text x="148" y="188" font-family="system-ui, sans-serif" font-size="104" font-weight="800" fill="#ffffff" text-anchor="middle">E</text>
+  <text x="332" y="188" font-family="system-ui, sans-serif" font-size="104" font-weight="800" fill="#1b1502" text-anchor="middle">1</text>
+</svg>

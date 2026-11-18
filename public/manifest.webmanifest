@@ -1,0 +1,19 @@
+{
+  "name": "Emry Hall 1st Floor Wordle",
+  "short_name": "Emry Wordle",
+  "description": "One shared word a day for the first floor of Emry Hall.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f1116",
+  "theme_color": "#0f1116",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

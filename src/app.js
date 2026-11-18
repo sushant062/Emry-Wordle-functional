@@ -1,5 +1,8 @@
 import { Hono } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { centralDay, weekStart } from './time.js';
 import { assignWordForDay, getWordForDay, getWordById } from './words.js';
 import { elapsedFor, getTodayState, nextHint, startRankedAttempt, submitGuess } from './attempts.js';
@@ -13,6 +16,17 @@ export const DEVICE_COOKIE = 'emry_device';
 const PRACTICE_MAX_GUESSES = 60;
 const YEAR_SECONDS = 60 * 60 * 24 * 365;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
+const LONG_CACHE = 'public, max-age=31536000, immutable';
+const STATIC_FILES = new Map([
+  ['/', ['index.html', 'text/html; charset=utf-8', 'no-store']],
+  ['/index.html', ['index.html', 'text/html; charset=utf-8', 'no-store']],
+  ['/app.js', ['app.js', 'text/javascript; charset=utf-8', LONG_CACHE]],
+  ['/app.css', ['app.css', 'text/css; charset=utf-8', LONG_CACHE]],
+  ['/icon.svg', ['icon.svg', 'image/svg+xml', LONG_CACHE]],
+  ['/manifest.webmanifest', ['manifest.webmanifest', 'application/manifest+json; charset=utf-8', 'public, max-age=3600']],
+]);
 
 const STATUS = {
   bad_json: 400,
@@ -73,6 +87,19 @@ export function createApp({
 
   const deviceId = (c) => c.get('deviceId');
   const today = () => centralDay(now());
+
+  for (const [route, [file, type, cache]] of STATIC_FILES) {
+    app.get(route, (c) => {
+      try {
+        const body = readFileSync(join(PUBLIC_DIR, file), 'utf8');
+        c.header('content-type', type);
+        c.header('cache-control', cache);
+        return c.body(body);
+      } catch {
+        return c.text('not found', 404);
+      }
+    });
+  }
 
   function ensureWord(day) {
     return getWordForDay(db, day) ?? assignWordForDay(db, day, now());
