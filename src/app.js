@@ -7,6 +7,7 @@ import { dayBoard, hallOfFame, monthBoard, weekBoard } from './leaderboard.js';
 import { validateName } from './names.js';
 import { isValidGuess, loadWordSets, scoreGuess } from './game.js';
 import { createRateLimiter } from './ratelimit.js';
+import { createAdminRoutes } from './admin.js';
 
 export const DEVICE_COOKIE = 'emry_device';
 const PRACTICE_MAX_GUESSES = 60;
@@ -44,7 +45,12 @@ function parseJson(raw) {
   }
 }
 
-export function createApp({ db, now = () => Date.now(), secureCookies = process.env.NODE_ENV === 'production' }) {
+export function createApp({
+  db,
+  now = () => Date.now(),
+  secureCookies = process.env.NODE_ENV === 'production',
+  adminToken = process.env.ADMIN_TOKEN ?? '',
+}) {
   const app = new Hono();
   const guessLimiter = createRateLimiter({ limit: 60, windowMs: 60_000, now });
   const startLimiter = createRateLimiter({ limit: 10, windowMs: 60_000, now });
@@ -103,6 +109,7 @@ export function createApp({ db, now = () => Date.now(), secureCookies = process.
   }
 
   app.use('/api/*', async (c, next) => {
+    if (c.req.path.startsWith('/api/admin')) return next();
     const incoming = getCookie(c, DEVICE_COOKIE);
     let id = null;
     if (incoming && UUID_RE.test(incoming)) {
@@ -280,6 +287,8 @@ export function createApp({ db, now = () => Date.now(), secureCookies = process.
       remaining: PRACTICE_MAX_GUESSES - guesses.length,
     });
   });
+
+  app.route('/', createAdminRoutes({ db, token: adminToken, secureCookies, now }));
 
   return app;
 }

@@ -115,7 +115,13 @@ export function previewDays(db, fromDay, count, options = {}) {
     const day = addDays(fromDay, i);
     const row = getWordForDay(db, day);
     if (row) {
-      out.push({ day, status: row.source === 'scheduled' ? 'scheduled' : row.source, word: row.word, hint: row.hint });
+      out.push({
+        id: row.id,
+        day,
+        status: row.source === 'scheduled' ? 'scheduled' : row.source,
+        word: row.word,
+        hint: row.hint,
+      });
     } else if (poolCount > 0) {
       out.push({ day, status: 'pool', word: null });
     } else if (answers.length > 0) {
