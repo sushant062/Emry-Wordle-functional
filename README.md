@@ -24,6 +24,20 @@ vanilla frontend. No build step.
 
 ## Run it locally
 
+The fastest path is the dev script — it builds a fresh in-memory database, seeds
+the themed pool, and picks today's word for you:
+
+```sh
+npm ci
+npm run dev
+```
+
+Open <http://localhost:3999>. The admin page is at
+<http://localhost:3999/admin> (token `devtoken`; override with
+`ADMIN_TOKEN=... npm run dev` or change the port with `PORT=...`).
+
+To run against a persistent database the way production does:
+
 ```sh
 npm ci
 ADMIN_TOKEN=dev-token DB_PATH=:memory: PORT=3000 npm start
@@ -179,6 +193,7 @@ src/share.js        shared result-text formatter (also served at /share.js)
 public/             phone-first UI, admin page, manifest, icon
 data/               seed words/clues, answer and allowed dictionaries
 scripts/seed.js     idempotent pool seeding
+scripts/dev.js      in-memory dev server (`npm run dev`)
 systemd/            service unit
 test/               node:test suites
 ```
