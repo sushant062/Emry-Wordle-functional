@@ -56,13 +56,7 @@ import { formatShare } from '/share.js?v=1';
   const canVibrate = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
 
   function buzz(pattern) {
-    if (!canVibrate) {
-      if (!sessionStorage.getItem('emry_haptics_warned')) {
-        sessionStorage.setItem('emry_haptics_warned', '1');
-        toast('Haptics aren\\u2019t supported on this browser. Try Chrome on Android for tap feedback.');
-      }
-      return;
-    }
+    if (!canVibrate) return;
     try {
       navigator.vibrate(pattern);
     } catch {
