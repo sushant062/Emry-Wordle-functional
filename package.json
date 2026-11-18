@@ -1,0 +1,22 @@
+{
+  "name": "emry-wordle",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Daily word game for Emry Hall 1st floor",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "better-sqlite3": "^11.5.0",
+    "hono": "^4.6.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@11.10.0": true
+  }
+}
