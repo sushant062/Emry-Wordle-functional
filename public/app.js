@@ -414,7 +414,10 @@ import { formatShare } from '/share.js?v=1';
       practice.addEventListener('click', startPractice);
       card.push(practice);
     } else {
-      const back = el('button', { class: 'btn primary', type: 'button', text: 'Back to today' });
+      const another = el('button', { class: 'btn primary', type: 'button', text: 'Practice another' });
+      another.addEventListener('click', startPractice);
+      card.push(another);
+      const back = el('button', { class: 'btn', type: 'button', text: 'Back to today' });
       back.addEventListener('click', () => location.reload());
       card.push(back);
     }
@@ -538,6 +541,8 @@ import { formatShare } from '/share.js?v=1';
       renderKeyboard();
       if (data.finished) {
         finishRound(data.solved, data.elapsedMs ?? elapsedNow());
+      } else if (state.mode === 'practice' && state.rows.length >= 6) {
+        finishRound(false, elapsedNow());
       } else if (data.remaining === 1) {
         toast('Last guess');
       }

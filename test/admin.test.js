@@ -151,6 +151,16 @@ test('CSV export quotes commas and newlines in names', async () => {
   assert.equal(lines[1], `2026-11-17,d1,"Ana, ""The Great""\nRA",30000,0,1,0`);
 });
 
+test('CSV export neutralizes formula-like names', async () => {
+  const db = freshDb();
+  seedAttempt(db, { name: '-Eve' });
+  const { call } = makeAdmin(db);
+  await call('/api/admin/login', { method: 'POST', body: { token: TOKEN } });
+  const res = await call('/api/admin/export.csv');
+  assert.equal(res.status, 200);
+  assert.match(res.body, /\n2026-11-17,d1,'-Eve,30000,0,1,0/);
+});
+
 test('14-day preview lists scheduled, pooled-pending, and dictionary fallback days', async () => {
   const db = freshDb();
   db.prepare("INSERT INTO words (day, word, source, created_at) VALUES ('2026-11-17', 'CLASS', 'scheduled', ?)").run(NOON);

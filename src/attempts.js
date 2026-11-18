@@ -1,5 +1,5 @@
 import { scoreGuess, isValidGuess, loadWordSets } from './game.js';
-import { centralDay } from './time.js';
+import { centralDay, nextCentralMidnight } from './time.js';
 import { getWordById, getWordForDay } from './words.js';
 
 export const MAX_GUESSES = 6;
@@ -42,6 +42,26 @@ function openRanked(db, deviceId) {
     .get(deviceId);
 }
 
+function closeStaleAttempts(db, deviceId, day, now) {
+  const stale = db
+    .prepare(
+      "SELECT * FROM attempts WHERE device_id = ? AND mode = 'ranked' AND finished_at IS NULL AND day < ?",
+    )
+    .all(deviceId, day);
+  const close = db.transaction(() => {
+    for (const attempt of stale) {
+      const start = attempt.started_at ?? attempt.created_at ?? now;
+      const finishedAt = Math.min(now, nextCentralMidnight(start));
+      db.prepare('UPDATE attempts SET finished_at = ?, solved = 0, elapsed_ms = ? WHERE id = ?').run(
+        finishedAt,
+        elapsedFor({ ...attempt, finished_at: finishedAt }, finishedAt),
+        attempt.id,
+      );
+    }
+  });
+  close();
+}
+
 export function startRankedAttempt(db, { deviceId, day, now = Date.now() }) {
   if (!deviceId) return { error: 'device_required' };
   const today = centralDay(now);
@@ -52,6 +72,8 @@ export function startRankedAttempt(db, { deviceId, day, now = Date.now() }) {
     if (existing.finished_at != null) return { error: 'already_finished' };
     return { attempt: existing, created: false };
   }
+
+  closeStaleAttempts(db, deviceId, day, now);
 
   const open = openRanked(db, deviceId);
   if (open && open.day !== day) return { error: 'day_over' };

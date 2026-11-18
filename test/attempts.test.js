@@ -82,6 +82,29 @@ test('guesses after midnight are refused with day_over', () => {
   assert.equal(row.guesses, '[]');
 });
 
+test('an unfinished attempt from yesterday does not lock the device out today', () => {
+  const db = setup();
+  const yesterday = '2026-11-16';
+  const yesterdayNoon = NOON - 24 * 60 * 60 * 1000;
+  assignWordForDay(db, yesterday, yesterdayNoon);
+  const started = startRankedAttempt(db, { deviceId: DEV, day: yesterday, now: yesterdayNoon });
+  assert.equal(started.created, true);
+  const yesterdayWord = db.prepare('SELECT word FROM words WHERE day = ?').get(yesterday).word;
+  const wrong = ['CRANE', 'SLATE', 'AUDIO', 'PIOUS'].find((word) => word !== yesterdayWord);
+  const guess = submitGuess(db, { deviceId: DEV, guess: wrong, now: yesterdayNoon + 1000 });
+  assert.equal(guess.error, undefined);
+
+  const today = startRankedAttempt(db, { deviceId: DEV, day: DAY, now: NOON });
+  assert.equal(today.created, true);
+  assert.equal(today.attempt.day, DAY);
+
+  const stale = db.prepare('SELECT finished_at, solved FROM attempts WHERE day = ?').get(yesterday);
+  assert.notEqual(stale.finished_at, null, 'stale attempt should be closed');
+  assert.equal(stale.solved, 0);
+  const open = db.prepare("SELECT COUNT(*) AS n FROM attempts WHERE mode = 'ranked' AND finished_at IS NULL").get().n;
+  assert.equal(open, 1);
+});
+
 test('losing completes the attempt with no rank', () => {
   const db = setup();
   startRankedAttempt(db, { deviceId: DEV, day: DAY, now: NOON });

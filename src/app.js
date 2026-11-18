@@ -268,6 +268,7 @@ export function createApp({
   });
 
   app.post('/api/practice/start', async (c) => {
+    if (!startLimiter.check(deviceId(c))) return c.json({ error: 'rate_limited' }, 429);
     const body = await readJson(c);
     if (!body) return c.json({ error: 'bad_json' }, 400);
     const day = today();
