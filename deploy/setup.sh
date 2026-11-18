@@ -22,16 +22,36 @@ fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
 step "system packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq curl ca-certificates git sqlite3 >/dev/null
+apt-get install -y -qq curl ca-certificates git sqlite3 xz-utils >/dev/null
 
 step "node"
 if [ -x /usr/bin/node ] && [ "$(/usr/bin/node -p 'process.versions.node.split(".")[0]')" -ge 22 ]; then
   echo "node $(/usr/bin/node --version) already installed"
 else
-  echo "installing Node 22 from NodeSource"
-  curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null
-  apt-get install -y -qq nodejs >/dev/null
+  echo "installing Node 22"
+  if ! curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null 2>&1 \
+    || ! apt-get install -y -qq nodejs >/dev/null 2>&1; then
+    echo "NodeSource route failed; falling back to the official tarball"
+    ARCH="$(dpkg --print-architecture)"
+    case "$ARCH" in
+      amd64) NODE_ARCH=linux-x64 ;;
+      arm64) NODE_ARCH=linux-arm64 ;;
+      *) fail "unsupported architecture: $ARCH" ;;
+    esac
+    VERSION="$(curl -fsSL https://nodejs.org/dist/index.json \
+      | tr ',' '\n' | grep -o '"version":"v22\.[0-9.]*"' | head -1 | cut -d'"' -f4)"
+    [ -n "$VERSION" ] || fail "could not determine the latest Node 22 release"
+    TMP="$(mktemp -d)"
+    curl -fsSL "https://nodejs.org/dist/$VERSION/node-$VERSION-$NODE_ARCH.tar.xz" -o "$TMP/node.tar.xz"
+    tar -xJf "$TMP/node.tar.xz" -C /usr/local --strip-components=1
+    rm -rf "$TMP"
+    ln -sf /usr/local/bin/node /usr/bin/node
+    ln -sf /usr/local/bin/npm /usr/bin/npm
+    ln -sf /usr/local/bin/npx /usr/bin/npx
+  fi
   [ -x /usr/bin/node ] || fail "node did not install to /usr/bin/node"
+  [ "$(/usr/bin/node -p 'process.versions.node.split(".")[0]')" -ge 22 ] || fail "installed node is older than 22"
+  echo "node $(/usr/bin/node --version) installed"
 fi
 NODE_BIN=/usr/bin/node
 
@@ -115,6 +135,10 @@ cat >"$CRON" <<EOF
 EOF
 chmod 644 "$CRON"
 echo "installed $CRON"
+if ! systemctl is-active --quiet cron 2>/dev/null; then
+  apt-get install -y -qq cron >/dev/null 2>&1 || true
+  systemctl enable --now cron 2>/dev/null || echo "note: cron service not started; the backup job will not run until it is"
+fi
 
 FUNNEL_STATUS=""
 if [ "$SKIP_FUNNEL" = "1" ]; then
