@@ -67,6 +67,15 @@ Generate a token with `openssl rand -hex 32`. Rotating it logs every admin out.
 These steps assume Debian, Tailscale already installed, and the repo at
 <https://github.com/sushant062/Emry-Wordle-functional>.
 
+**Shortcut:** `sudo bash deploy/setup.sh` does steps 1–9 below idempotently —
+installs Node 22 if needed, creates the user and directories, clones or updates
+the code, writes `/etc/emry-wordle.env` with a fresh token if none exists,
+seeds the pool, installs the systemd unit, health-checks it, sets up the nightly
+backup, and enables Funnel. Re-running it after a `git push` is the update path.
+Set `SKIP_FUNNEL=1` to leave Funnel alone.
+
+The individual steps, if you want to do them by hand:
+
 1. **Install Node 22 or newer** (NodeSource or the distro package):
 
    ```sh
