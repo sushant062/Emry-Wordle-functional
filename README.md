@@ -139,6 +139,11 @@ The individual steps, if you want to do them by hand:
    tailscale funnel status
    ```
 
+   Funnel has to be enabled **once per tailnet**, from the admin console; until
+   then the command prints an `https://login.tailscale.com/f/funnel?node=...`
+   link and exits. Open that link, enable Funnel (Tailscale also turns on HTTPS
+   certificates for the tailnet), then re-run the command.
+
    Use the printed `https://<machine>.<tailnet>.ts.net` URL. No domain purchase is
    needed. Funnel gives you a public HTTPS URL; the game itself still has no
    passwords beyond the device cookie.
