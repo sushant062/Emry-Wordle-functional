@@ -11,6 +11,15 @@ function addDays(day, delta) {
   return date.toISOString().slice(0, 10);
 }
 
+export function hintLeaksAnswer(hint, word) {
+  const cleanWord = String(word ?? '').toLowerCase().replace(/[^a-z]/g, '');
+  const cleanHint = String(hint ?? '').toLowerCase().replace(/[^a-z]/g, '');
+  if (!cleanWord || !cleanHint) return false;
+  if (cleanHint.includes(cleanWord)) return true;
+  const stem = cleanWord.slice(0, 4);
+  return stem.length === 4 && cleanHint.includes(stem);
+}
+
 export function getWordForDay(db, day) {
   return db.prepare('SELECT id, day, word, hint, source FROM words WHERE day = ?').get(day);
 }
@@ -22,6 +31,7 @@ export function getWordById(db, id) {
 export function addPoolWord(db, { word, hint = null }) {
   const upper = String(word ?? '').trim().toUpperCase();
   if (!WORD_RE.test(upper)) throw new Error('invalid_word');
+  if (hint != null && hintLeaksAnswer(hint, upper)) throw new Error('hint_leaks');
   const existing = db.prepare("SELECT id FROM words WHERE word = ? AND day IS NULL").get(upper);
   if (existing) return getWordById(db, existing.id);
   const info = db
@@ -33,6 +43,7 @@ export function addPoolWord(db, { word, hint = null }) {
 export function scheduleWord(db, { day, word, hint = null }) {
   const upper = String(word ?? '').trim().toUpperCase();
   if (!WORD_RE.test(upper)) throw new Error('invalid_word');
+  if (hint != null && hintLeaksAnswer(hint, upper)) throw new Error('hint_leaks');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(day ?? ''))) throw new Error('invalid_day');
   const played = db.prepare('SELECT COUNT(*) AS n FROM attempts WHERE day = ?').get(day).n;
   if (played > 0) throw new Error('day_played');

@@ -10,6 +10,7 @@ import {
   scheduleWord,
   previewDays,
   startScheduler,
+  hintLeaksAnswer,
 } from '../src/words.js';
 
 const openDbs = [];
@@ -125,6 +126,6 @@ test('seed list is playable: five letters, answerable, hints hide the word', () 
     assert.match(word, /^[A-Z]{5}$/);
     assert.ok(answerSet.has(word), `${word} must be a possible answer`);
     assert.ok(hint.length > 0);
-    assert.ok(!hint.toUpperCase().includes(word), `${word} appears in its own hint`);
+    assert.equal(hintLeaksAnswer(hint, word), false, `${word} hint leaks the answer`);
   }
 });

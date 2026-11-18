@@ -3,6 +3,8 @@ import { centralDay } from './time.js';
 import { getWordById, getWordForDay } from './words.js';
 
 export const MAX_GUESSES = 6;
+export const MAX_HINTS = 2;
+export const HINT_PENALTY_MS = 20000;
 const SUSPICIOUS_MS = 1200;
 
 let wordSets = null;
@@ -125,6 +127,70 @@ export function submitGuess(db, { deviceId, guess, now = Date.now() }) {
     elapsedMs: elapsedFor(updated, now),
     remaining: MAX_GUESSES - guesses.length,
     guesses,
+  };
+}
+
+function revealedPositions(guesses) {
+  const revealed = new Set();
+  for (const entry of guesses) {
+    if (Array.isArray(entry.results)) {
+      entry.results.forEach((result, index) => {
+        if (result === 'correct') revealed.add(index);
+      });
+    }
+    if (entry.reveal && Number.isInteger(entry.reveal.position)) revealed.add(entry.reveal.position);
+  }
+  return revealed;
+}
+
+export function nextHint(db, { deviceId, now = Date.now() }) {
+  const today = centralDay(now);
+  const attempt = openRanked(db, deviceId);
+  if (!attempt) {
+    const finishedToday = findRanked(db, deviceId, today);
+    return { error: finishedToday?.finished_at != null ? 'finished' : 'not_started' };
+  }
+  if (attempt.day !== today) return { error: 'day_over' };
+  if (attempt.hints >= MAX_HINTS) return { error: 'max_hints' };
+
+  const word = getWordById(db, attempt.word_id);
+  if (!word) return { error: 'no_word' };
+
+  const tier = attempt.hints + 1;
+  const guesses = parseGuesses(attempt.guesses);
+  let hint = { tier, text: word.hint };
+  let reveal = null;
+
+  if (!(tier === 1 && word.hint)) {
+    const revealed = revealedPositions(guesses);
+    let position = -1;
+    for (let i = 0; i < word.word.length; i += 1) {
+      if (!revealed.has(i)) {
+        position = i;
+        break;
+      }
+    }
+    if (position < 0) return { error: 'max_hints' };
+    reveal = { letter: word.word[position], position };
+    hint = { tier, ...reveal };
+    guesses.push({ reveal });
+  }
+
+  const write = db.transaction(() => {
+    db.prepare('UPDATE attempts SET hints = ?, penalty_ms = penalty_ms + ?, guesses = ? WHERE id = ?').run(
+      tier,
+      HINT_PENALTY_MS,
+      JSON.stringify(guesses),
+      attempt.id,
+    );
+    return db.prepare('SELECT * FROM attempts WHERE id = ?').get(attempt.id);
+  });
+
+  const updated = write();
+  return {
+    ...hint,
+    hints: tier,
+    elapsedMs: elapsedFor(updated, now),
   };
 }
 
