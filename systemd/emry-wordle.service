@@ -1,0 +1,21 @@
+[Unit]
+Description=Emry Hall 1st Floor daily word game
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=emry
+WorkingDirectory=/opt/emry-wordle
+EnvironmentFile=/etc/emry-wordle.env
+ExecStart=/usr/bin/node /opt/emry-wordle/src/server.js
+Restart=always
+RestartSec=3
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/emry-wordle
+
+[Install]
+WantedBy=multi-user.target

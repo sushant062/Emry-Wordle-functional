@@ -53,6 +53,7 @@ test('first request issues a device cookie and reports today', async () => {
   const call = makeClient(app);
   const { status, body, res } = await call('/api/today');
   assert.equal(status, 200);
+  assert.equal(body.status, 'ok');
   assert.equal(body.day, DAY);
   assert.equal(body.wordLength, 5);
   assert.equal(body.played, false);

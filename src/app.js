@@ -177,6 +177,7 @@ export function createApp({
     ensureWord(day);
     const state = getTodayState(db, { deviceId: deviceId(c), day });
     return c.json({
+      status: 'ok',
       day,
       wordLength: 5,
       attempt: attemptView(state.attempt),
