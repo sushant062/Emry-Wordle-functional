@@ -56,7 +56,13 @@ import { formatShare } from '/share.js?v=1';
   const canVibrate = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
 
   function buzz(pattern) {
-    if (!canVibrate) return;
+    if (!canVibrate) {
+      if (!sessionStorage.getItem('emry_haptics_warned')) {
+        sessionStorage.setItem('emry_haptics_warned', '1');
+        toast('Haptics aren\\u2019t supported on this browser. Try Chrome on Android for tap feedback.');
+      }
+      return;
+    }
     try {
       navigator.vibrate(pattern);
     } catch {
@@ -340,7 +346,7 @@ import { formatShare } from '/share.js?v=1';
 
     showOverlay([
       el('h2', { text: 'Emry Hall 1st Floor' }),
-      el('p', { text: 'One word a day. Fastest solve of the week wins the flex. Hints cost 20 seconds each.' }),
+      el('p', { text: 'One word a day. Fastest solve of the week wins $10 flex. Hints cost 20 seconds each.' }),
       el('label', { for: 'nameInput', text: 'Your name' }),
       input,
       list,
@@ -415,7 +421,7 @@ import { formatShare } from '/share.js?v=1';
       card.push(el('p', { text: state.solved ? 'You got it. This one does not count.' : 'Not this time. Practice stays off the board.' }));
     } else {
       card.push(el('h2', { text: state.solved ? 'Solved!' : 'Out of guesses' }));
-      card.push(el('p', { text: state.solved ? 'That time is on the board.' : 'Six guesses gone. Tomorrow resets everything.' }));
+      card.push(el('p', { text: state.solved ? 'That time is on the board. Fastest single solve this week wins $10 flex.' : 'Six guesses gone. Tomorrow resets everything.' }));
     }
     card.push(el('div', { class: 'big-time', text: formatTime(state.elapsedMs ?? elapsedNow()) }));
     const rankLine = el('p', { class: 'rank-line', text: 'Checking today\u2019s board…' });
@@ -709,6 +715,13 @@ import { formatShare } from '/share.js?v=1';
     try {
       const data = await api(`/api/leaderboard?range=${encodeURIComponent(range)}`);
       list.replaceChildren();
+      if (range === 'week') {
+        list.append(el('p', { class: 'tiny', text: 'Fastest single solve of any day this week wins $10 flex. Ties: fewer hints, then earlier finish.' }));
+      } else if (range === 'day') {
+        list.append(el('p', { class: 'tiny', text: 'Weekly prize: $10 flex for the fastest single solve. Monthly bonus for the longest streak.' }));
+      } else if (range === 'month') {
+        list.append(el('p', { class: 'tiny', text: 'Longest streak this month wins a $10 flex bonus and a spot in the Hall of Fame.' }));
+      }
       if (range === 'month') {
         renderBoardSection(list, 'Fastest this month', data.fastest);
         renderStreaks(list, data.streaks, 'Longest streaks');
