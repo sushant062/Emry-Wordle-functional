@@ -34,6 +34,7 @@ test('serves app assets as immutable', async () => {
   const app = makeApp();
   for (const [path, type] of [
     ['/app.js?v=1', /javascript/],
+    ['/share.js', /javascript/],
     ['/app.css?v=1', /text\/css/],
     ['/icon.svg', /image\/svg\+xml/],
     ['/manifest.webmanifest', /manifest\+json/],

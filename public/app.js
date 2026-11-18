@@ -1,3 +1,5 @@
+import { formatShare } from '/share.js?v=1';
+
 'use strict';
 
 (() => {
@@ -339,6 +341,47 @@
     toast('Type a word to start the clock');
   }
 
+  function shareText() {
+    return formatShare({
+      rows: state.rows.map((row) => row.results),
+      elapsedMs: state.elapsedMs ?? elapsedNow(),
+      hints: state.hints,
+    });
+  }
+
+  function copyFallback(text) {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.top = '-1000px';
+    document.body.append(area);
+    area.select();
+    let copied = false;
+    try {
+      copied = document.execCommand('copy');
+    } catch {
+      copied = false;
+    }
+    area.remove();
+    return copied;
+  }
+
+  async function copyShare() {
+    const text = shareText();
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else if (!copyFallback(text)) {
+        throw new Error('copy_failed');
+      }
+      toast('Copied — paste it in the group chat');
+    } catch {
+      if (copyFallback(text)) toast('Copied — paste it in the group chat');
+      else toast('Could not copy on this phone');
+    }
+  }
+
   function showResult() {
     state.screen = 'finished';
     stopTimer();
@@ -362,6 +405,11 @@
     }
 
     if (state.mode === 'ranked') {
+      if (state.solved) {
+        const share = el('button', { class: 'btn primary', type: 'button', text: 'Copy result' });
+        share.addEventListener('click', copyShare);
+        card.push(share);
+      }
       const practice = el('button', { class: 'btn', type: 'button', text: 'Practice on a past word' });
       practice.addEventListener('click', startPractice);
       card.push(practice);

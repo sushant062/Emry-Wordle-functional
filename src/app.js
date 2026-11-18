@@ -18,6 +18,7 @@ const YEAR_SECONDS = 60 * 60 * 24 * 365;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
+const SRC_DIR = dirname(fileURLToPath(import.meta.url));
 const LONG_CACHE = 'public, max-age=31536000, immutable';
 const STATIC_FILES = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8', 'no-store']],
@@ -100,6 +101,17 @@ export function createApp({
       }
     });
   }
+
+  app.get('/share.js', (c) => {
+    try {
+      const body = readFileSync(join(SRC_DIR, 'share.js'), 'utf8');
+      c.header('content-type', 'text/javascript; charset=utf-8');
+      c.header('cache-control', LONG_CACHE);
+      return c.body(body);
+    } catch {
+      return c.text('not found', 404);
+    }
+  });
 
   function ensureWord(day) {
     return getWordForDay(db, day) ?? assignWordForDay(db, day, now());
