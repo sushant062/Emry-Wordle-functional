@@ -17,6 +17,7 @@ import { formatShare } from '/share.js?v=1';
     mode: 'ranked',
     busy: false,
     starting: false,
+    startPromise: null,
     rows: [],
     reveals: [],
     current: '',
@@ -47,6 +48,21 @@ import { formatShare } from '/share.js?v=1';
   };
 
   const messageFor = (code) => MESSAGES[code] || 'Something went wrong';
+
+  // ---------- Haptics ----------
+
+  // navigator.vibrate exists on Android; iOS Safari has no vibration API, so
+  // this is simply a no-op on iPhones instead of an error.
+  const canVibrate = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+
+  function buzz(pattern) {
+    if (!canVibrate) return;
+    try {
+      navigator.vibrate(pattern);
+    } catch {
+      /* some browsers reject vibration when the page is hidden */
+    }
+  }
 
   // ---------- DOM helpers ----------
 
@@ -123,6 +139,11 @@ import { formatShare } from '/share.js?v=1';
   // ---------- Rendering ----------
 
   function renderBoard() {
+    // The flip is a one-shot: the render right after a guess animates the row it
+    // just committed. Consuming it here stops later renders (each keystroke
+    // rebuilds the board) from replaying the animation on an old row.
+    const flipRow = state.flipRow;
+    state.flipRow = -1;
     const board = $('board');
     board.replaceChildren();
     for (let r = 0; r < 6; r += 1) {
@@ -139,7 +160,7 @@ import { formatShare } from '/share.js?v=1';
           if (letter) cls += ' filled';
         }
         const tile = el('div', { class: cls, text: letter });
-        if (state.flipRow === r && committed) {
+        if (flipRow === r && committed) {
           tile.classList.add('flip');
           tile.style.animationDelay = `${c * 70}ms`;
         }
@@ -206,7 +227,6 @@ import { formatShare } from '/share.js?v=1';
     renderKeyboard();
     fitBoard();
     updateTimer();
-    state.flipRow = -1;
   }
 
   function fitBoard() {
@@ -481,6 +501,7 @@ import { formatShare } from '/share.js?v=1';
       return;
     }
     if (key === 'BACK') {
+      buzz(8);
       state.current = state.current.slice(0, -1);
       renderBoard();
       return;
@@ -490,8 +511,9 @@ import { formatShare } from '/share.js?v=1';
 
   async function beginAttempt() {
     state.starting = true;
+    state.startPromise = post('/api/attempt/start');
     try {
-      const data = await post('/api/attempt/start');
+      const data = await state.startPromise;
       state.startedAt = data.attempt.startedAt;
       state.penaltyMs = data.attempt.penaltyMs || 0;
       state.hints = data.attempt.hints || 0;
@@ -505,25 +527,38 @@ import { formatShare } from '/share.js?v=1';
       }
     } finally {
       state.starting = false;
+      state.startPromise = null;
     }
   }
 
   function typeLetter(letter) {
     if (state.current.length >= 5 || state.finished) return;
     if (state.mode === 'ranked' && !state.startedAt && !state.starting) beginAttempt();
+    buzz(8);
     state.current += letter;
     renderBoard();
   }
 
   async function submitGuess() {
     if (state.current.length !== 5) {
+      buzz([40, 60, 40]);
       toast('Five letters, then Enter');
       shakeRow(state.rows.length);
       return;
     }
     if (state.mode === 'ranked' && !state.startedAt) {
-      toast('Tap Play to start');
-      return;
+      // Fast typists can hit Enter before the start call returns; wait for it
+      // instead of telling them to start a game they already started.
+      if (!state.startPromise) {
+        toast('Tap Play to start');
+        return;
+      }
+      try {
+        await state.startPromise;
+      } catch {
+        return;
+      }
+      if (!state.startedAt) return;
     }
     state.busy = true;
     const guess = state.current;
@@ -543,12 +578,14 @@ import { formatShare } from '/share.js?v=1';
         finishRound(data.solved, data.elapsedMs ?? elapsedNow());
       } else if (state.mode === 'practice' && state.rows.length >= 6) {
         finishRound(false, elapsedNow());
-      } else if (data.remaining === 1) {
-        toast('Last guess');
+      } else {
+        buzz(20);
+        if (data.remaining === 1) toast('Last guess');
       }
     } catch (error) {
       state.busy = false;
       if (error.message === 'invalid_word') {
+        buzz([40, 60, 40]);
         toast('Not in the word list');
         shakeRow(state.rows.length);
       } else if (error.message === 'already_finished' || error.message === 'day_over') {
@@ -564,7 +601,7 @@ import { formatShare } from '/share.js?v=1';
     state.finished = true;
     state.solved = Boolean(solved);
     state.elapsedMs = elapsedMs;
-    state.flipRow = -1;
+    buzz(solved ? [30, 50, 30, 50, 120] : [160, 80, 160]);
     showResult();
   }
 
@@ -576,6 +613,7 @@ import { formatShare } from '/share.js?v=1';
       const data = await post('/api/hint');
       state.hints = data.hints;
       state.penaltyMs = data.hints * 20000;
+      buzz(20);
       if (data.text) {
         state.hintText = data.text;
         localStorage.setItem(hintKey(state.day), data.text);
