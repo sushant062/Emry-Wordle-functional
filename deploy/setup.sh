@@ -79,7 +79,23 @@ else
 fi
 
 step "dependencies"
-sudo -u emry env HOME="$APP_DIR" npm --prefix "$APP_DIR" ci --omit=dev --silent
+# better-sqlite3 13 ships prebuilt binaries inside the package, but its install
+# script falls back to node-gyp when it cannot download one, and this box has no
+# compiler. Installing without scripts uses the bundled binary; if that does not
+# load, install the toolchain and build it for real.
+sudo -u emry env HOME="$APP_DIR" npm --prefix "$APP_DIR" ci --omit=dev --ignore-scripts \
+  || fail "npm ci failed; see the output above"
+SQLITE_CHECK="require('$APP_DIR/node_modules/better-sqlite3')(':memory:').close()"
+if ! sudo -u emry "$NODE_BIN" -e "$SQLITE_CHECK" 2>/tmp/emry-sqlite.err; then
+  echo "bundled SQLite binary did not load; installing build tools and compiling"
+  apt-get install -y -qq build-essential python3 >/dev/null
+  sudo -u emry env HOME="$APP_DIR" npm --prefix "$APP_DIR" ci --omit=dev \
+    || fail "npm ci with build tools failed; see the output above"
+  sudo -u emry "$NODE_BIN" -e "$SQLITE_CHECK" || {
+    cat /tmp/emry-sqlite.err >&2
+    fail "better-sqlite3 still does not load"
+  }
+fi
 echo "production dependencies installed"
 
 step "environment file"
